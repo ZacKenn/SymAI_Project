@@ -3,6 +3,7 @@ package tp1
 import com.github.javafaker.Faker
 import org.apache.jena.rdf.model._
 
+import java.io.{File, PrintWriter}
 import java.util.Locale
 import scala.collection.convert.ImplicitConversions.`list asScalaBuffer`
 import scala.collection.mutable.ListBuffer
@@ -37,17 +38,24 @@ class Test(val dbSource : String) {
     val rdfType = model.createProperty(typeProperty)
     val fullprofessor = model.createResource("http://swat.cse.lehigh.edu/onto/univ-bench.owl#FullProfessor")
     val it = model.listSubjectsWithProperty(rdfType,fullprofessor)
+
+    val ext = new File("lubm1extension.ttl")
+    val printWriter = new PrintWriter(ext)
+    val fullProfessorExtension = new ListBuffer[Statement]
+
     it.toList.distinct.foreach(x => {
-      model.createStatement(x,identifierRDF,model.createResource(""+f.number()))
-      model.createStatement(x,firstNameRDF,model.createResource(f.name().firstName()))
-      model.createStatement(x,lastNameRDF,model.createResource(f.name().lastName()))
-      model.createStatement(x,genderRDF,model.createResource(f.regexify("[FM]{1}")))
-      model.createStatement(x,zipcodeRDF,model.createResource(""+f.address().zipCode()))
-      model.createStatement(x,dateOfBirthRDF,model.createResource(""+f.date().birthday(30,71)))
-      model.createStatement(x,dateOfVaccination,model.createResource(""+f.date().birthday(0,3)))
-      model.createStatement(x,vaccineName,model.createResource(vaccine(f.number().numberBetween(0,5))))
+      fullProfessorExtension += model.createStatement(x,identifierRDF,model.createResource(""+f.number().randomNumber()))
+      fullProfessorExtension += model.createStatement(x,firstNameRDF,model.createResource(f.name().firstName()))
+      fullProfessorExtension += model.createStatement(x,lastNameRDF,model.createResource(f.name().lastName()))
+      fullProfessorExtension += model.createStatement(x,genderRDF,model.createResource(f.regexify("[FM]{1}")))
+      fullProfessorExtension += model.createStatement(x,zipcodeRDF,model.createResource(""+f.address().zipCode()))
+      fullProfessorExtension += model.createStatement(x,dateOfBirthRDF,model.createResource(""+f.date().birthday(30,71)))
+      fullProfessorExtension += model.createStatement(x,dateOfVaccination,model.createResource(""+f.date().birthday(0,3)))
+      fullProfessorExtension += model.createStatement(x,vaccineName,model.createResource(vaccine(f.number().numberBetween(0,5))))
     })
 
+    fullProfessorExtension.foreach(x => printWriter.write("<" + x.getSubject + "> <" + x.getPredicate + "> \"" + x.getResource + "\" .\n"))
+    printWriter.close()
   }
 
 
