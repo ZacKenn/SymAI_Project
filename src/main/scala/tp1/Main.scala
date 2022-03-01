@@ -10,4 +10,5 @@ object Main extends App {
   val f = new Faker()
   test.load()
   test.addStatement()
+  test.addOntology()
 }
