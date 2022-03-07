@@ -3,11 +3,19 @@ package tp1
 import com.github.javafaker.Faker
 import org.apache.jena.ontology.OntModelSpec
 import org.apache.jena.rdf.model._
+import org.apache.kafka.clients.producer.{KafkaProducer, ProducerRecord}
+import play.api.libs.json.{JsValue, Json}
 
 import java.io.{File, PrintWriter}
-import java.util.Locale
+import java.time.Instant
+import java.util.{Date, Locale, Properties}
 import scala.collection.convert.ImplicitConversions.`list asScalaBuffer`
 import scala.collection.mutable.ListBuffer
+
+class Person(val lastName: String, val firstName: String, val gender: String, val zipcode: String, val birthDate: Date, val vaccinationDate: Date,
+             val vaccineName: String, val sideEffect: String) {
+
+}
 
 class Test(val dbSource : String) {
   val model = ModelFactory.createDefaultModel();
@@ -19,10 +27,22 @@ class Test(val dbSource : String) {
   val dateOfBirthRDF = model.createProperty("http://swat.cse.lehigh.edu/onto/univ-bench.owl#dateOfBirth")
   val dateOfVaccination = model.createProperty("http://swat.cse.lehigh.edu/onto/univ-bench.owl#dateOfVaccination")
   val vaccineName = model.createProperty("http://swat.cse.lehigh.edu/onto/univ-bench.owl#vaccineName")
+  val sideEffectRDF = model.createProperty("http://swat.cse.lehigh.edu/onto/univ-bench.owl#sideEffect")
   val f = new Faker(new Locale("us"));
   val vaccine = List( "Pfizer", "Moderna", "AstraZeneca", "SpoutnikV", "CanSinoBio")
 
-  def load() = model.read(dbSource, "TTL")
+  val sideEffects = List("C0151828","C0015672")
+
+  val props = new Properties()
+  props.put("bootstrap.servers", "localhost:9092")
+  props.put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer")
+  props.put("value.serializer", "org.apache.kafka.common.serialization.StringSerializer")
+  props.put("acks", "all")
+
+  val producer = new KafkaProducer[JsValue, JsValue](props)
+  val topic = "topic0"
+
+  def load(dbSource : String) = model.read(dbSource, "TTL")
   def showModel() : Unit = println("is empty ? "  + model.isEmpty())
   def size() : Long = model.size()
 
@@ -34,50 +54,43 @@ class Test(val dbSource : String) {
     props.toList.distinct
   }
 
-  def addStatement() : Unit = {
-    val typeProperty = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"
-    val rdfType = model.createProperty(typeProperty)
-    val fullprofessor = model.createResource("http://swat.cse.lehigh.edu/onto/univ-bench.owl#FullProfessor")
-    val it = model.listSubjectsWithProperty(rdfType,fullprofessor)
-
-    val ext = new File("lubm1extension.ttl")
-    val printWriter = new PrintWriter(ext)
-    val fullProfessorExtension = new ListBuffer[Statement]
-
-    it.toList.distinct.foreach(x => {
-      fullProfessorExtension += model.createStatement(x,identifierRDF,model.createResource(""+f.number().randomNumber()))
-      fullProfessorExtension += model.createStatement(x,firstNameRDF,model.createResource(f.name().firstName()))
-      fullProfessorExtension += model.createStatement(x,lastNameRDF,model.createResource(f.name().lastName()))
-      fullProfessorExtension += model.createStatement(x,genderRDF,model.createResource(f.regexify("[FM]{1}")))
-      fullProfessorExtension += model.createStatement(x,zipcodeRDF,model.createResource(""+f.address().zipCode()))
-      fullProfessorExtension += model.createStatement(x,dateOfBirthRDF,model.createResource(""+f.date().birthday(30,71)))
-      fullProfessorExtension += model.createStatement(x,dateOfVaccination,model.createResource(""+f.date().birthday(0,3)))
-      fullProfessorExtension += model.createStatement(x,vaccineName,model.createResource(vaccine(f.number().numberBetween(0,5))))
-    })
-
-    fullProfessorExtension.foreach(x => printWriter.write("<" + x.getSubject + "> <" + x.getPredicate + "> \"" + x.getResource + "\" .\n"))
-    printWriter.close()
-  }
-
   def addStatementForClass(subclass : String, printWriter: PrintWriter) : Unit = {
     val typeProperty = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"
     val rdfType = model.createProperty(typeProperty)
     val person = model.createResource(subclass)
     val it = model.listSubjectsWithProperty(rdfType, person)
 
-    val ext = new File("lubm1extension.ttl")
+    val persObj = new Person(f.name().lastName(), f.name().firstName(),
+      f.regexify("[FM]{1}"),
+      f.address().zipCode().toString(),
+      f.date().birthday(30,71),
+      f.date().birthday(0,3),
+      vaccine(f.number().numberBetween(0,5)),
+      sideEffects(f.number().numberBetween(0, 0))
+    )
+
     val personExtension = new ListBuffer[Statement]
 
+    val sideEff = sideEffects(f.number().numberBetween(0,1))
+
     it.toList.distinct.foreach(x => {
-      personExtension += model.createStatement(x,identifierRDF,model.createResource(""+f.number().randomNumber()))
-      personExtension += model.createStatement(x,firstNameRDF,model.createResource(f.name().firstName()))
-      personExtension += model.createStatement(x,lastNameRDF,model.createResource(f.name().lastName()))
-      personExtension += model.createStatement(x,genderRDF,model.createResource(f.regexify("[FM]{1}")))
-      personExtension += model.createStatement(x,zipcodeRDF,model.createResource(""+f.address().zipCode()))
-      personExtension += model.createStatement(x,dateOfBirthRDF,model.createResource(""+f.date().birthday(30,71)))
-      personExtension += model.createStatement(x,dateOfVaccination,model.createResource(""+f.date().birthday(0,3)))
-      personExtension += model.createStatement(x,vaccineName,model.createResource(vaccine(f.number().numberBetween(0,5))))
+      personExtension += model.createStatement(x,identifierRDF,model.createResource(f.number().randomNumber().toString()))
+      personExtension += model.createStatement(x,firstNameRDF,model.createResource(persObj.firstName))
+      personExtension += model.createStatement(x,lastNameRDF,model.createResource(persObj.lastName))
+      personExtension += model.createStatement(x,genderRDF,model.createResource(persObj.gender))
+      personExtension += model.createStatement(x,zipcodeRDF,model.createResource(persObj.zipcode))
+      personExtension += model.createStatement(x,dateOfBirthRDF,model.createResource(persObj.birthDate.toString))
+      personExtension += model.createStatement(x,dateOfVaccination,model.createResource(persObj.vaccinationDate.toString))
+      personExtension += model.createStatement(x,vaccineName,model.createResource(persObj.vaccineName))
+      personExtension += model.createStatement(x,sideEffectRDF,model.createResource(sideEff))
+
+      try{
+        val record = new ProducerRecord[JsValue, JsValue](topic, convertToJSON(persObj), convertToJSON(persObj))
+        producer.send(record)
+      }
     })
+
+    producer.close()
 
     personExtension.foreach(x => printWriter.write("<" + x.getSubject + "> <" + x.getPredicate + "> \"" + x.getResource + "\" .\n"))
   }
@@ -89,12 +102,15 @@ class Test(val dbSource : String) {
     val ext = new File("lubm1PersonExtension.ttl")
     val printWriter = new PrintWriter(ext)
     pers.listSubClasses(false).filterDrop(c => c.getURI==null).toList.forEach(x => {
-      println(x.getURI)
       addStatementForClass(x.getURI, printWriter)
     })
     printWriter.close()
   }
 
-
+  def convertToJSON(person: Person): JsValue = {
+    val jsonObject = Json.toJson(person.lastName, person.firstName, person.gender,
+      person.zipcode, person.birthDate, person.vaccinationDate, person.vaccineName, person.sideEffect)
+    jsonObject
+  }
 
 }
