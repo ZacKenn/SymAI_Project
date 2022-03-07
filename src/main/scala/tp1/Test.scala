@@ -1,6 +1,7 @@
 package tp1
 
 import com.github.javafaker.Faker
+import org.apache.avro.Schema
 import org.apache.jena.ontology.OntModelSpec
 import org.apache.jena.rdf.model._
 import org.apache.kafka.clients.producer.{KafkaProducer, ProducerRecord}
@@ -88,14 +89,14 @@ class Test(val dbSource : String) {
       }
     })
 
-    personExtension.foreach(x => printWriter.write("<" + x.getSubject + "> <" + x.getPredicate + "> \"" + x.getResource + "\" .\n"))
+    personExtension.foreach(x => printWriter.append("<" + x.getSubject + "> <" + x.getPredicate + "> \"" + x.getResource + "\" .\n"))
   }
 
   def addOntology(): Unit = {
     val inf = ModelFactory.createOntologyModel(OntModelSpec.OWL_MEM_MINI_RULE_INF)
     inf.read("file:src/main/resources/univ-bench.owl")
     val pers = inf.getOntClass("http://swat.cse.lehigh.edu/onto/univ-bench.owl#Person")
-    val ext = new File("lubm1PersonExtension.ttl")
+    val ext = new File("lubm1.ttl")
     val printWriter = new PrintWriter(ext)
     pers.listSubClasses(false).filterDrop(c => c.getURI==null).toList.forEach(x => {
       addStatementForClass(x.getURI, printWriter)
@@ -108,6 +109,20 @@ class Test(val dbSource : String) {
     val jsonObject = Json.toJson(person.lastName, person.firstName, person.gender,
       person.zipcode, person.birthDate, person.vaccinationDate, person.vaccineName, person.sideEffect)
     jsonObject
+  }
+
+//  def topicForVaccinatedPersons(subClass : String) : Unit = {
+//    val typeProperty = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"
+//    val rdfType = model.createProperty(typeProperty)
+//    val person = model.createResource(subClass)
+//    val vaccineProperty = model.createProperty("http://swat.cse.lehigh.edu/onto/univ-bench.owl#vaccineName")
+//    val it = model.listSubjectsWithProperty(rdfType, person)
+//    model.listSubjectsWithProperty(vaccineProperty).forEach(println)
+//  }
+
+  def avroSchemaInitializer() : Unit = {
+    val schema = Schema.createRecord("person", null, null, false)
+//    new Schema.Field("date", "ok")
   }
 
 }

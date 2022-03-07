@@ -23,12 +23,15 @@
     <orderEntry type="library" name="sbt: com.github.luben:zstd-jni:1.4.9-1:jar" level="project" />
     <orderEntry type="library" name="sbt: com.github.mifmif:generex:1.0.2:jar" level="project" />
     <orderEntry type="library" name="sbt: com.thoughtworks.paranamer:paranamer:2.8:jar" level="project" />
+    <orderEntry type="library" name="sbt: com.twitter:bijection-avro_2.13:0.9.7:jar" level="project" />
+    <orderEntry type="library" name="sbt: com.twitter:bijection-core_2.13:0.9.7:jar" level="project" />
     <orderEntry type="library" name="sbt: com.typesafe.play:play-functional_2.13:2.9.2:jar" level="project" />
     <orderEntry type="library" name="sbt: com.typesafe.play:play-json_2.13:2.9.2:jar" level="project" />
     <orderEntry type="library" name="sbt: commons-cli:commons-cli:1.5.0:jar" level="project" />
     <orderEntry type="library" name="sbt: commons-codec:commons-codec:1.15:jar" level="project" />
     <orderEntry type="library" name="sbt: commons-io:commons-io:2.11.0:jar" level="project" />
     <orderEntry type="library" name="sbt: dk.brics.automaton:automaton:1.11-8:jar" level="project" />
+    <orderEntry type="library" name="sbt: org.apache.avro:avro:1.7.7:jar" level="project" />
     <orderEntry type="library" name="sbt: org.apache.commons:commons-compress:1.21:jar" level="project" />
     <orderEntry type="library" name="sbt: org.apache.commons:commons-csv:1.9.0:jar" level="project" />
     <orderEntry type="library" name="sbt: org.apache.commons:commons-lang3:3.12.0:jar" level="project" />
@@ -37,6 +40,8 @@
     <orderEntry type="library" name="sbt: org.apache.jena:jena-iri:4.3.2:jar" level="project" />
     <orderEntry type="library" name="sbt: org.apache.jena:jena-shaded-guava:4.3.2:jar" level="project" />
     <orderEntry type="library" name="sbt: org.apache.kafka:kafka-clients:2.8.0:jar" level="project" />
+    <orderEntry type="library" name="sbt: org.codehaus.jackson:jackson-core-asl:1.9.13:jar" level="project" />
+    <orderEntry type="library" name="sbt: org.codehaus.jackson:jackson-mapper-asl:1.9.13:jar" level="project" />
     <orderEntry type="library" name="sbt: org.lz4:lz4-java:1.7.1:jar" level="project" />
     <orderEntry type="library" name="sbt: org.scala-lang:scala-library:2.13.8:jar" level="project" />
     <orderEntry type="library" name="sbt: org.scala-lang:scala-reflect:2.13.8:jar" level="project" />
