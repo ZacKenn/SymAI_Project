@@ -39,7 +39,7 @@ class Test(val dbSource : String) {
   props.put("value.serializer", "org.apache.kafka.common.serialization.StringSerializer")
   props.put("acks", "all")
 
-  val producer = new KafkaProducer[JsValue, JsValue](props)
+  val producer = new KafkaProducer[String, String](props)
   val topic = "topic0"
 
   def load(dbSource : String) = model.read(dbSource, "TTL")
@@ -60,20 +60,18 @@ class Test(val dbSource : String) {
     val person = model.createResource(subclass)
     val it = model.listSubjectsWithProperty(rdfType, person)
 
-    val persObj = new Person(f.name().lastName(), f.name().firstName(),
-      f.regexify("[FM]{1}"),
-      f.address().zipCode().toString(),
-      f.date().birthday(30,71),
-      f.date().birthday(0,3),
-      vaccine(f.number().numberBetween(0,5)),
-      sideEffects(f.number().numberBetween(0, 0))
-    )
-
     val personExtension = new ListBuffer[Statement]
 
-    val sideEff = sideEffects(f.number().numberBetween(0,1))
-
     it.toList.distinct.foreach(x => {
+      val sideEff = sideEffects(f.number().numberBetween(0,1))
+      val persObj = new Person(f.name().lastName(), f.name().firstName(),
+        f.regexify("[FM]{1}"),
+        f.address().zipCode().toString(),
+        f.date().birthday(30,71),
+        f.date().birthday(0,3),
+        vaccine(f.number().numberBetween(0,5)),
+        sideEffects(f.number().numberBetween(0, 0))
+      )
       personExtension += model.createStatement(x,identifierRDF,model.createResource(f.number().randomNumber().toString()))
       personExtension += model.createStatement(x,firstNameRDF,model.createResource(persObj.firstName))
       personExtension += model.createStatement(x,lastNameRDF,model.createResource(persObj.lastName))
@@ -85,12 +83,10 @@ class Test(val dbSource : String) {
       personExtension += model.createStatement(x,sideEffectRDF,model.createResource(sideEff))
 
       try{
-        val record = new ProducerRecord[JsValue, JsValue](topic, convertToJSON(persObj), convertToJSON(persObj))
+        val record = new ProducerRecord[String, String](topic, persObj.lastName, convertToJSON(persObj).toString())
         producer.send(record)
       }
     })
-
-    producer.close()
 
     personExtension.foreach(x => printWriter.write("<" + x.getSubject + "> <" + x.getPredicate + "> \"" + x.getResource + "\" .\n"))
   }
@@ -104,6 +100,7 @@ class Test(val dbSource : String) {
     pers.listSubClasses(false).filterDrop(c => c.getURI==null).toList.forEach(x => {
       addStatementForClass(x.getURI, printWriter)
     })
+    producer.close()
     printWriter.close()
   }
 

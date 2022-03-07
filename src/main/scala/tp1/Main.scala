@@ -7,7 +7,7 @@ import java.util.Locale
 
 object Main extends App {
   val test = new Test("file:lubm1.ttl")
-  test.load("file:lubm1extension.ttl")
+  test.load("file:lubm1.ttl")
   test.addOntology()
 
 //  val test = new KafkaTest()
