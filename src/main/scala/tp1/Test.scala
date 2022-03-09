@@ -1,7 +1,9 @@
 package tp1
 
 import com.github.javafaker.Faker
-import org.apache.avro.Schema
+import com.twitter.bijection.avro.GenericAvroCodecs
+import org.apache.avro.{Schema, SchemaBuilder}
+import org.apache.avro.generic.{GenericData, GenericRecord}
 import org.apache.jena.ontology.OntModelSpec
 import org.apache.jena.rdf.model._
 import org.apache.kafka.clients.producer.{KafkaProducer, ProducerRecord}
@@ -120,9 +122,32 @@ class Test(val dbSource : String) {
 //    model.listSubjectsWithProperty(vaccineProperty).forEach(println)
 //  }
 
+  class PersonAvro(val date: Date, val id: Long, val firstName: String, val lastName: String, val vaccineName: String, val sideEffect: String,
+                   val siderCode: String) {
+
+  }
   def avroSchemaInitializer() : Unit = {
-    val schema = Schema.createRecord("person", null, null, false)
-//    new Schema.Field("date", "ok")
+    val schema = SchemaBuilder.record("person").fields()
+      .requiredString("date")
+      .requiredLong("id")
+      .requiredString("firstName")
+      .requiredString("lastName")
+      .requiredString("vaccineName")
+      .requiredString("sideEffect")
+      .requiredString("siderCode")
+      .endRecord()
+    val test = GenericAvroCodecs.apply[GenericRecord](schema)
+    val tmp = new GenericData.Record(schema)
+    tmp.put("date",f.date())
+    tmp.put("id",1)
+    tmp.put("firstName",f.name().firstName())
+    tmp.put("lastName",f.name().lastName())
+    tmp.put("vaccineName","vaccineName")
+    tmp.put("sideEffect","sideeffect")
+    tmp.put("siderCode","sidercode")
+
+    test.apply(tmp)
+    //test.apply(new PersonAvro(f.date().birthday(), 1L, "name", "name", "name", "name", "n"))
   }
 
 }
