@@ -15,7 +15,7 @@ import scala.collection.convert.ImplicitConversions.`list asScalaBuffer`
 import scala.collection.immutable.HashMap
 import scala.collection.mutable.ListBuffer
 
-class Person(val lastName: String, val firstName: String, val gender: String, val zipcode: String, val birthDate: Date, val vaccinationDate: Date,
+class Person(val id : Long, val lastName: String, val firstName: String, val gender: String, val zipcode: String, val birthDate: Date, val vaccinationDate: Date,
              val vaccineName: String, val sideEffect: String, val siderCode : String) {
 
 }
@@ -109,7 +109,10 @@ class Test(val dbSource : String) {
 
     it.toList.distinct.foreach(x => {
       val sideEff = sideEffects.toList(f.number().numberBetween(0,sideEffects.size))
-      val persObj = new Person(f.name().lastName(), f.name().firstName(),
+      val id = f.number().randomNumber()
+      val persObj = new Person(
+        id,
+        f.name().lastName(), f.name().firstName(),
         f.regexify("[FM]{1}"),
         f.address().zipCode(),
         f.date().birthday(30,71),
@@ -118,7 +121,7 @@ class Test(val dbSource : String) {
         sideEff._2,
         sideEff._1
       )
-      personExtension += model.createStatement(x,identifierRDF,model.createResource(f.number().randomNumber().toString()))
+      personExtension += model.createStatement(x,identifierRDF,model.createResource(persObj.id.toString))
       personExtension += model.createStatement(x,firstNameRDF,model.createResource(persObj.firstName))
       personExtension += model.createStatement(x,lastNameRDF,model.createResource(persObj.lastName))
       personExtension += model.createStatement(x,genderRDF,model.createResource(persObj.gender))
@@ -129,7 +132,7 @@ class Test(val dbSource : String) {
       personExtension += model.createStatement(x,sideEffectRDF,model.createResource(persObj.sideEffect))
       personExtension += model.createStatement(x,siderCodeRDF,model.createResource(persObj.siderCode))
 
-      val record = produceRecord(schema, persObj.vaccinationDate.toString, 1L, persObj.firstName, persObj.lastName, persObj.vaccineName, persObj.sideEffect, persObj.siderCode)
+      val record = produceRecord(schema, persObj.vaccinationDate.toString, persObj.id, persObj.firstName, persObj.lastName, persObj.vaccineName, persObj.sideEffect, persObj.siderCode)
       sendRecord(schema, record)
     })
 
