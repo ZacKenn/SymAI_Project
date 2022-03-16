@@ -10,13 +10,13 @@ import org.apache.kafka.clients.producer.{KafkaProducer, ProducerRecord}
 import play.api.libs.json.{JsValue, Json}
 
 import java.io.{File, PrintWriter}
-import java.time.Instant
 import java.util.{Date, Locale, Properties}
 import scala.collection.convert.ImplicitConversions.`list asScalaBuffer`
+import scala.collection.immutable.HashMap
 import scala.collection.mutable.ListBuffer
 
 class Person(val lastName: String, val firstName: String, val gender: String, val zipcode: String, val birthDate: Date, val vaccinationDate: Date,
-             val vaccineName: String, val sideEffect: String) {
+             val vaccineName: String, val sideEffect: String, val siderCode : String) {
 
 }
 
@@ -31,21 +31,24 @@ class Test(val dbSource : String) {
   val dateOfVaccination = model.createProperty("http://swat.cse.lehigh.edu/onto/univ-bench.owl#dateOfVaccination")
   val vaccineName = model.createProperty("http://swat.cse.lehigh.edu/onto/univ-bench.owl#vaccineName")
   val sideEffectRDF = model.createProperty("http://swat.cse.lehigh.edu/onto/univ-bench.owl#sideEffect")
+  val siderCodeRDF = model.createProperty("http://swat.cse.lehigh.edu/onto/univ-bench.owl#siderCode")
   val f = new Faker(new Locale("us"));
   val vaccine = List( "Pfizer", "Moderna", "AstraZeneca", "SpoutnikV", "CanSinoBio")
 
-  val sideEffects = List("C0151828","C0015672")
+  val sideEffects = HashMap("C0151828"->"Injection site pain", "C0015672"->"fatigue", "C0018681"->"headache", "C0231528"->"Muscle pain",
+  "C0085593"->"chills", "C0003862"->"Joint pain", "C0015967"->"fever", "C0151605"->"Injection site swelling", "C0852625"->"Injection site redness",
+  "C0027497"->"Nausea", "C0231218"->"Malaise", "C0497156"->"Lymphadenopathy", "C0863083"->"Injection site tenderness")
 
   val props = new Properties()
   props.put("bootstrap.servers", "localhost:9092")
   props.put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer")
-  props.put("value.serializer", "org.apache.kafka.common.serialization.StringSerializer")
+  props.put("value.serializer", "org.apache.kafka.common.serialization.ByteArraySerializer")
   props.put("acks", "all")
 
-  val producer = new KafkaProducer[String, String](props)
+  val producer = new KafkaProducer[String, Array[Byte]](props)
   val topic = "topic0"
 
-  def load(dbSource : String) = model.read(dbSource, "TTL")
+  def load() = model.read(dbSource, "TTL")
   def showModel() : Unit = println("is empty ? "  + model.isEmpty())
   def size() : Long = model.size()
 
@@ -57,7 +60,42 @@ class Test(val dbSource : String) {
     props.toList.distinct
   }
 
-  def addStatementForClass(subclass : String, printWriter: PrintWriter) : Unit = {
+  def avroSchemaInitializer() : Schema = {
+    val schema = SchemaBuilder.record("person").fields()
+      .requiredString("date")
+      .requiredLong("id")
+      .requiredString("firstName")
+      .requiredString("lastName")
+      .requiredString("vaccineName")
+      .requiredString("sideEffect")
+      .requiredString("siderCode")
+      .endRecord()
+    schema
+  }
+
+  def produceRecord(schema : Schema, date : String, id : Long, firstName : String, lastName : String,
+                    vaccineName : String, sideEffect : String, siderCode : String): GenericData.Record = {
+    val tmp = new GenericData.Record(schema)
+    tmp.put("date", date)
+    tmp.put("id", id)
+    tmp.put("firstName", firstName)
+    tmp.put("lastName", lastName)
+    tmp.put("vaccineName", vaccineName)
+    tmp.put("sideEffect", sideEffect)
+    tmp.put("siderCode", siderCode)
+    tmp
+  }
+
+  def sendRecord(schema : Schema, record : GenericData.Record): Unit = {
+    val test = GenericAvroCodecs.apply[GenericRecord](schema)
+    val personDataToSend = test.apply(record)
+    try{
+      val record = new ProducerRecord[String, Array[Byte]](topic, "test", personDataToSend)
+      producer.send(record)
+    }
+  }
+
+  def addStatementForClass(subclass : String, printWriter: PrintWriter, schema : Schema) : Unit = {
     val typeProperty = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"
     val rdfType = model.createProperty(typeProperty)
     val person = model.createResource(subclass)
@@ -66,14 +104,15 @@ class Test(val dbSource : String) {
     val personExtension = new ListBuffer[Statement]
 
     it.toList.distinct.foreach(x => {
-      val sideEff = sideEffects(f.number().numberBetween(0,1))
+      val sideEff = sideEffects.toList(f.number().numberBetween(0,sideEffects.size))
       val persObj = new Person(f.name().lastName(), f.name().firstName(),
         f.regexify("[FM]{1}"),
-        f.address().zipCode().toString(),
+        f.address().zipCode(),
         f.date().birthday(30,71),
         f.date().birthday(0,3),
         vaccine(f.number().numberBetween(0,5)),
-        sideEffects(f.number().numberBetween(0, 0))
+        sideEff._2,
+        sideEff._1
       )
       personExtension += model.createStatement(x,identifierRDF,model.createResource(f.number().randomNumber().toString()))
       personExtension += model.createStatement(x,firstNameRDF,model.createResource(persObj.firstName))
@@ -83,12 +122,11 @@ class Test(val dbSource : String) {
       personExtension += model.createStatement(x,dateOfBirthRDF,model.createResource(persObj.birthDate.toString))
       personExtension += model.createStatement(x,dateOfVaccination,model.createResource(persObj.vaccinationDate.toString))
       personExtension += model.createStatement(x,vaccineName,model.createResource(persObj.vaccineName))
-      personExtension += model.createStatement(x,sideEffectRDF,model.createResource(sideEff))
+      personExtension += model.createStatement(x,sideEffectRDF,model.createResource(persObj.sideEffect))
+      personExtension += model.createStatement(x,siderCodeRDF,model.createResource(persObj.siderCode))
 
-      try{
-        val record = new ProducerRecord[String, String](topic, persObj.lastName, convertToJSON(persObj).toString())
-        producer.send(record)
-      }
+      val record = produceRecord(schema, persObj.vaccinationDate.toString, 1L, persObj.firstName, persObj.lastName, persObj.vaccineName, persObj.sideEffect, persObj.siderCode)
+      sendRecord(schema, record)
     })
 
     personExtension.foreach(x => printWriter.append("<" + x.getSubject + "> <" + x.getPredicate + "> \"" + x.getResource + "\" .\n"))
@@ -98,10 +136,11 @@ class Test(val dbSource : String) {
     val inf = ModelFactory.createOntologyModel(OntModelSpec.OWL_MEM_MINI_RULE_INF)
     inf.read("file:src/main/resources/univ-bench.owl")
     val pers = inf.getOntClass("http://swat.cse.lehigh.edu/onto/univ-bench.owl#Person")
-    val ext = new File("lubm1.ttl")
+    val ext = new File("lubm1extension.ttl")
     val printWriter = new PrintWriter(ext)
+    val schema = avroSchemaInitializer()
     pers.listSubClasses(false).filterDrop(c => c.getURI==null).toList.forEach(x => {
-      addStatementForClass(x.getURI, printWriter)
+      addStatementForClass(x.getURI, printWriter, schema)
     })
     producer.close()
     printWriter.close()
@@ -124,30 +163,5 @@ class Test(val dbSource : String) {
 
   class PersonAvro(val date: Date, val id: Long, val firstName: String, val lastName: String, val vaccineName: String, val sideEffect: String,
                    val siderCode: String) {
-
   }
-  def avroSchemaInitializer() : Unit = {
-    val schema = SchemaBuilder.record("person").fields()
-      .requiredString("date")
-      .requiredLong("id")
-      .requiredString("firstName")
-      .requiredString("lastName")
-      .requiredString("vaccineName")
-      .requiredString("sideEffect")
-      .requiredString("siderCode")
-      .endRecord()
-    val test = GenericAvroCodecs.apply[GenericRecord](schema)
-    val tmp = new GenericData.Record(schema)
-    tmp.put("date",f.date())
-    tmp.put("id",1)
-    tmp.put("firstName",f.name().firstName())
-    tmp.put("lastName",f.name().lastName())
-    tmp.put("vaccineName","vaccineName")
-    tmp.put("sideEffect","sideeffect")
-    tmp.put("siderCode","sidercode")
-
-    test.apply(tmp)
-    //test.apply(new PersonAvro(f.date().birthday(), 1L, "name", "name", "name", "name", "n"))
-  }
-
 }
