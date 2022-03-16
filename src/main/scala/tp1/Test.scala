@@ -20,6 +20,10 @@ class Person(val lastName: String, val firstName: String, val gender: String, va
 
 }
 
+class PersonAvro(val date: Date, val id: Long, val firstName: String, val lastName: String, val vaccineName: String, val sideEffect: String,
+                 val siderCode: String) {
+}
+
 class Test(val dbSource : String) {
   val model = ModelFactory.createDefaultModel();
   val identifierRDF = model.createProperty("http://swat.cse.lehigh.edu/onto/univ-bench.owl#identifier")
@@ -160,8 +164,4 @@ class Test(val dbSource : String) {
 //    val it = model.listSubjectsWithProperty(rdfType, person)
 //    model.listSubjectsWithProperty(vaccineProperty).forEach(println)
 //  }
-
-  class PersonAvro(val date: Date, val id: Long, val firstName: String, val lastName: String, val vaccineName: String, val sideEffect: String,
-                   val siderCode: String) {
-  }
 }
