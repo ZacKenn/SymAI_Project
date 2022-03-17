@@ -102,7 +102,6 @@ class Test(val dbSource : String) {
       personExtension += model.createStatement(x,sideEffectRDF,model.createResource(persObj.sideEffect))
       personExtension += model.createStatement(x,siderCodeRDF,model.createResource(persObj.siderCode))
 
-
       val record = producer.produceRecord(schema, persObj.vaccinationDate.toString, persObj.id, persObj.firstName, persObj.lastName, persObj.vaccineName, persObj.sideEffect, persObj.siderCode)
       producer.sendRecord(schema, record)
 

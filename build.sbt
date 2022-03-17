@@ -14,4 +14,6 @@ libraryDependencies += "com.fasterxml.jackson.module" %% "jackson-module-scala" 
 
 libraryDependencies += "org.apache.kafka" % "kafka-clients" % "2.8.0"
 
+libraryDependencies += "org.apache.kafka" % "kafka-streams" % "3.1.0"
+
 libraryDependencies += "com.twitter" %% "bijection-avro" % "0.9.7"
