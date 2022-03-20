@@ -1,7 +1,6 @@
 package tp1
 
 import org.apache.kafka.clients.consumer.KafkaConsumer
-import org.apache.kafka.common.TopicPartition
 
 import java.util.Properties
 import java.time.Duration
@@ -21,8 +20,8 @@ class KafkaAvroConsumerClass {
 
   val consumer = new KafkaConsumer[String, Array[Byte]](props)
 
-  val tp1 = new TopicPartition("topic0",1)
-  val topics = List[TopicPartition](tp1)
+//  val tp1 = new TopicPartition("topic0",1)
+//  val topics = List[TopicPartition](tp1)
   consumer.subscribe(List[String]("topic0").asJava)
 
   val schema = SchemaBuilder.record("person").fields()
@@ -41,7 +40,7 @@ class KafkaAvroConsumerClass {
       while(true){
         val records = consumer.poll(Duration.ofMillis(1000))
         for(record <- records.asScala){
-          println("Key: " + record.key() + ", Value: "+test.invert(record.value()) + ", Offset: " + record.offset())
+          println("Key: " + record.key() + ", Value: "+ test.invert(record.value()) + ", Offset: " + record.offset())
         }
       }
       consumer.commitAsync()

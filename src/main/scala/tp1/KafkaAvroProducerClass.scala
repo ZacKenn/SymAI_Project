@@ -33,8 +33,9 @@ class KafkaAvroProducerClass{
   def sendRecord(schema : Schema, record : GenericData.Record): Unit = {
     val test = GenericAvroCodecs.apply[GenericRecord](schema)
     val personDataToSend = test.apply(record)
+    val name : String = record.get("firstName").toString
     try{
-      val record = new ProducerRecord[String, Array[Byte]](topic, "test", personDataToSend)
+      val record = new ProducerRecord[String, Array[Byte]](topic, name, personDataToSend)
       producer.send(record)
     }
   }

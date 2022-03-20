@@ -4,7 +4,7 @@ import com.github.javafaker.Faker
 import org.apache.avro.{Schema, SchemaBuilder}
 import org.apache.jena.ontology.OntModelSpec
 import org.apache.jena.rdf.model._
-import play.api.libs.json.{JsValue, Json}
+import play.api.libs.json.{JsValue, Json, Writes}
 
 import java.io.{File, PrintWriter}
 import java.util.{Date, Locale, Properties}
@@ -67,6 +67,7 @@ class Test(val dbSource : String) {
   }
 
   val producer = new KafkaAvroProducerClass()
+  val producer2 = new KafkaProducerClass
 
 
   def addStatementForClass(subclass : String, printWriter: PrintWriter, schema : Schema) : Unit = {
@@ -102,9 +103,10 @@ class Test(val dbSource : String) {
       personExtension += model.createStatement(x,sideEffectRDF,model.createResource(persObj.sideEffect))
       personExtension += model.createStatement(x,siderCodeRDF,model.createResource(persObj.siderCode))
 
-      val record = producer.produceRecord(schema, persObj.vaccinationDate.toString, persObj.id, persObj.firstName, persObj.lastName, persObj.vaccineName, persObj.sideEffect, persObj.siderCode)
-      producer.sendRecord(schema, record)
+//      val record = producer.produceRecord(schema, persObj.vaccinationDate.toString, persObj.id, persObj.firstName, persObj.lastName, persObj.vaccineName, persObj.sideEffect, persObj.siderCode)
+//      val record = producer2.produceRecord(schema, persObj.vaccinationDate.toString, persObj.id, persObj.firstName, persObj.lastName, persObj.vaccineName, persObj.sideEffect, persObj.siderCode)
 
+      producer2.sendRecord(convertToJSON(persObj))
     })
 
     personExtension.foreach(x => printWriter.append("<" + x.getSubject + "> <" + x.getPredicate + "> \"" + x.getResource + "\" .\n"))
@@ -121,12 +123,24 @@ class Test(val dbSource : String) {
       addStatementForClass(x.getURI, printWriter, schema)
     })
     printWriter.close()
+    producer2.producer.close()
   }
-
-  def convertToJSON(person: Person): JsValue = {
-    val jsonObject = Json.toJson(person.lastName, person.firstName, person.gender,
-      person.zipcode, person.birthDate, person.vaccinationDate, person.vaccineName, person.sideEffect)
-    jsonObject
+  implicit val locationWrites = new Writes[Person] {
+    def writes(person: Person) = Json.obj(
+      "lastName"  -> person.lastName,
+             "firstName"  -> person.firstName,
+             "gender"  -> person.gender,
+             "zipcode"-> person.zipcode,
+             "birthDate" -> person.birthDate,
+             "vaccinationDate" -> person.vaccinationDate,
+             "vaccineName" -> person.vaccineName,
+             "sideEffect" -> person.sideEffect,
+    )
+  }
+  def convertToJSON(person: Person) = {
+    val obj = Json.toJson(person)
+    println(obj)
+    obj
   }
 
 //  def topicForVaccinatedPersons(subClass : String) : Unit = {
