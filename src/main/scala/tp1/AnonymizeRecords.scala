@@ -52,6 +52,13 @@ class AnonymizeRecords extends Runnable{
         new KeyValue[String, String](key, convertAnonymousPersonToJSON(tmp).toString())
       })
 
+    val countSideEffects = source.map((key, value) => {
+      val person = Json.parse(value)
+      new KeyValue[String, String](person("sideEffect").as[String], person("sideEffect").as[String])
+    }).groupByKey().count().toStream()
+    countSideEffects.foreach((k, v) => {System.out.println(k + " " + v)
+    })
+    countSideEffects.to("numberOfSideEffect")
 
     anonymizeRecordsResult.foreach((k, v) => {System.out.println(k + " " + v)
     })
