@@ -12,10 +12,12 @@ import scala.collection.convert.ImplicitConversions.`list asScalaBuffer`
 import scala.collection.immutable.HashMap
 import scala.collection.mutable.ListBuffer
 
-class Person(val id : Long, val lastName: String, val firstName: String, val gender: String, val zipcode: String, val birthDate: Date, val vaccinationDate: Date,
+class Person(val id: Long, val lastName: String, val firstName: String, val gender: String, val zipcode: String, val birthDate: Date, val vaccinationDate: Date,
              val vaccineName: String, val sideEffect: String, val siderCode : String) {
-
 }
+
+class AnonymousPerson(val id: Long, val gender: String, val zipcode: String, val birthDate: String, val vaccinationDate: String,
+                      val vaccineName: String, val sideEffect: String, val siderCode : String)
 
 class PersonAvro(val date: Date, val id: Long, val firstName: String, val lastName: String, val vaccineName: String, val sideEffect: String,
                  val siderCode: String) {
@@ -106,7 +108,7 @@ class Test(val dbSource : String) {
 //      val record = producer.produceRecord(schema, persObj.vaccinationDate.toString, persObj.id, persObj.firstName, persObj.lastName, persObj.vaccineName, persObj.sideEffect, persObj.siderCode)
 //      val record = producer2.produceRecord(schema, persObj.vaccinationDate.toString, persObj.id, persObj.firstName, persObj.lastName, persObj.vaccineName, persObj.sideEffect, persObj.siderCode)
 
-      producer2.sendRecord(convertToJSON(persObj))
+      producer2.sendRecord(convertPersonToJSON(persObj))
     })
 
     personExtension.foreach(x => printWriter.append("<" + x.getSubject + "> <" + x.getPredicate + "> \"" + x.getResource + "\" .\n"))
@@ -127,7 +129,8 @@ class Test(val dbSource : String) {
   }
   implicit val locationWrites = new Writes[Person] {
     def writes(person: Person) = Json.obj(
-      "lastName"  -> person.lastName,
+             "id" -> person.id,
+             "lastName"  -> person.lastName,
              "firstName"  -> person.firstName,
              "gender"  -> person.gender,
              "zipcode"-> person.zipcode,
@@ -135,9 +138,11 @@ class Test(val dbSource : String) {
              "vaccinationDate" -> person.vaccinationDate,
              "vaccineName" -> person.vaccineName,
              "sideEffect" -> person.sideEffect,
+             "siderCode" -> person.siderCode
     )
   }
-  def convertToJSON(person: Person) = {
+
+  def convertPersonToJSON(person: Person) = {
     val obj = Json.toJson(person)
     println(obj)
     obj
