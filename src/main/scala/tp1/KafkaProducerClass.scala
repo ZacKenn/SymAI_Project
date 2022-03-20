@@ -19,7 +19,7 @@ class KafkaProducerClass {
   val topic = "topic2"
 
   def sendRecord(record : JsValue): Unit = {
-    val res = new ProducerRecord[String, String](topic,(record \ "lastName").get.as[String],record.toString())
+    val res = new ProducerRecord[String, String](topic,(record \ "id").get.toString(),record.toString())
     producer.send(res)
   }
 }

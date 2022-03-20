@@ -4,7 +4,7 @@ import com.github.javafaker.Faker
 import org.apache.avro.{Schema, SchemaBuilder}
 import org.apache.jena.ontology.OntModelSpec
 import org.apache.jena.rdf.model._
-import play.api.libs.json.{JsValue, Json, Writes}
+import play.api.libs.json.{JsObject, JsValue, Json, Writes}
 
 import java.io.{File, PrintWriter}
 import java.util.{Date, Locale, Properties}
@@ -16,7 +16,7 @@ class Person(val id: Long, val lastName: String, val firstName: String, val gend
              val vaccineName: String, val sideEffect: String, val siderCode : String) {
 }
 
-class AnonymousPerson(val id: Long, val gender: String, val zipcode: String, val birthDate: String, val vaccinationDate: String,
+class AnonymousPerson(val id: Long, val gender: String, val zipcode: String, val birthDate: Date, val vaccinationDate: Date,
                       val vaccineName: String, val sideEffect: String, val siderCode : String)
 
 class PersonAvro(val date: Date, val id: Long, val firstName: String, val lastName: String, val vaccineName: String, val sideEffect: String,
@@ -127,8 +127,8 @@ class Test(val dbSource : String) {
     printWriter.close()
     producer2.producer.close()
   }
-  implicit val locationWrites = new Writes[Person] {
-    def writes(person: Person) = Json.obj(
+  implicit val personWrites: Writes[Person] = new Writes[Person] {
+    def writes(person: Person): JsObject = Json.obj(
              "id" -> person.id,
              "lastName"  -> person.lastName,
              "firstName"  -> person.firstName,
@@ -142,7 +142,7 @@ class Test(val dbSource : String) {
     )
   }
 
-  def convertPersonToJSON(person: Person) = {
+  def convertPersonToJSON(person: Person): JsValue = {
     val obj = Json.toJson(person)
     println(obj)
     obj
