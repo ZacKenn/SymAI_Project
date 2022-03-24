@@ -7,10 +7,12 @@ import org.apache.kafka.streams.KafkaStreams
 import org.apache.kafka.streams.KeyValue
 import org.apache.kafka.streams.StreamsBuilder
 import org.apache.kafka.streams.StreamsConfig
-import org.apache.kafka.streams.kstream.{Consumed, KStream, Predicate, Produced}
+import org.apache.kafka.streams.kstream.{Consumed, JoinWindows, Joined, KStream, Predicate, Produced, StreamJoined, ValueJoiner}
 import play.api.libs.json.Format.GenericFormat
 import play.api.libs.json.{JsObject, Json, Writes}
 
+import java.time.Duration
+import java.util.concurrent.TimeUnit
 import java.util.{Date, Properties}
 
 class AnonymizeRecords extends Runnable{
@@ -74,21 +76,54 @@ class AnonymizeRecords extends Runnable{
 //    countSideEffects.foreach((k, v) => {System.out.println(k + " " + v)})
 
     // Question 5
-        val isPfizer : Predicate[String, String]  = (key, value) => Json.parse(value)("vaccineName").as[String].equalsIgnoreCase("Pfizer")
-        val isModerna : Predicate[String, String]  = (key, value) => Json.parse(value)("vaccineName").as[String].equalsIgnoreCase("Moderna")
-        val isAstraZeneca : Predicate[String, String]  = (key, value) => Json.parse(value)("vaccineName").as[String].equalsIgnoreCase("AstraZeneca")
-        val isSpoutnikV : Predicate[String, String]  = (key, value) => Json.parse(value)("vaccineName").as[String].equalsIgnoreCase("SpoutnikV")
-        val isCanSinoBio : Predicate[String, String]  = (key, value) => Json.parse(value)("vaccineName").as[String].equalsIgnoreCase("CanSinoBio")
-        val kstreamVaccin : Array[KStream[String, String]] = source.branch(isPfizer,isModerna,isAstraZeneca,isSpoutnikV,isCanSinoBio)
+      val isPfizer : Predicate[String, String]  = (key, value) => Json.parse(value)("vaccineName").as[String].equalsIgnoreCase("Pfizer")
+      val isModerna : Predicate[String, String]  = (key, value) => Json.parse(value)("vaccineName").as[String].equalsIgnoreCase("Moderna")
+      val isAstraZeneca : Predicate[String, String]  = (key, value) => Json.parse(value)("vaccineName").as[String].equalsIgnoreCase("AstraZeneca")
+      val isSpoutnikV : Predicate[String, String]  = (key, value) => Json.parse(value)("vaccineName").as[String].equalsIgnoreCase("SpoutnikV")
+      val isCanSinoBio : Predicate[String, String]  = (key, value) => Json.parse(value)("vaccineName").as[String].equalsIgnoreCase("CanSinoBio")
+      val kstreamVaccin : Array[KStream[String, String]] = source.branch(isPfizer,isModerna,isAstraZeneca,isSpoutnikV,isCanSinoBio)
 
-        kstreamVaccin.foreach( elem =>{
-          val tmp = elem.map((key, value) => {
-            val person = Json.parse(value)
-            new KeyValue[String, String](person("vaccineName").as[String] + " : " + person("sideEffect").as[String], person("sideEffect").as[String])
-          }).groupByKey().count().toStream()
-          tmp.to("newTopic")
-        })
-    
+      kstreamVaccin.foreach( elem =>{
+        val tmp = elem.map((key, value) => {
+          val person = Json.parse(value)
+          new KeyValue[String, String](person("vaccineName").as[String] + " : " + person("sideEffect").as[String], person("sideEffect").as[String])
+        }).groupByKey().count().toStream()
+        tmp.to("newTopic")
+      })
+
+
+    // Question 6
+
+    class VaccineSideEffectByAge(val sideEffect : String, val vaccineName : String, val age : String)
+    val ajoiner : ValueJoiner[String,String,String] = (k,v) => "vaccine=" + k + ", AgeCategory=" + v
+
+    val kstreamVaccin2 : Array[KStream[String, String]] = source.branch(isPfizer,isModerna,isAstraZeneca,isSpoutnikV,isCanSinoBio)
+    kstreamVaccin2.foreach( elem =>{
+      val tmp : KStream[String,String] = elem.map((key, value) => {
+        val person = Json.parse(value)
+        new KeyValue[String, String](person("sideEffect").as[String], person("vaccineName").as[String])
+      })
+      val tmp2 : KStream[String,String] = elem.map((key, value) => {
+        val person = Json.parse(value)
+        val time = System.currentTimeMillis() - person("birthDate").as[Date].getTime
+        val age = TimeUnit.MILLISECONDS.toDays(time)/3650
+        new KeyValue[String, String](person("sideEffect").as[String], age.toString )
+      })
+      val twentyMinuteWindow : JoinWindows =
+        JoinWindows.of(Duration.ofMillis(60 * 1000 * 20));
+
+      val joinedStream = {
+        tmp.join(tmp2, ajoiner
+        , twentyMinuteWindow,StreamJoined.`with`(Serdes.String(),Serdes.String(),Serdes.String()))
+      }
+
+      val joinedResult = joinedStream.map((k,v) => new KeyValue[String,String](v + " "+ k,v+ " "+ k)).groupByKey().count.mapValues(value => value.toString).toStream()
+      joinedResult.foreach((x,k) => System.out.println(k + " " + x))
+      joinedResult.to("test2")
+    })
+
+
+
 
     countSideEffects.to("numberOfSideEffect")
 
